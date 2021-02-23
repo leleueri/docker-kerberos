@@ -1,0 +1,7 @@
+FROM bitnami/openldap:2
+
+# COPY Kerberos schema to LDAP Schema directory
+# without this schema Kerberos can't manage principals and realms into the LDAP
+COPY kerberos.ldif /opt/bitnami/openldap/etc/schema/
+
+RUN apt-get -qq update && apt-get -qq install krb5-user libsasl2-modules-ldap libsasl2-modules-gssapi-mit libsasl2-2 && apt-get -qq clean

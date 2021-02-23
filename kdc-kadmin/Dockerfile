@@ -6,7 +6,7 @@ EXPOSE 749 88
 ENV DEBIAN_FRONTEND noninteractive
 # The -qq implies --yes
 RUN apt-get -qq update
-RUN apt-get -qq install locales krb5-kdc krb5-admin-server
+RUN apt-get -qq install locales krb5-kdc krb5-admin-server krb5-kdc-ldap 
 RUN apt-get -qq clean
 
 RUN locale-gen "en_US.UTF-8"

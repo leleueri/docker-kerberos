@@ -9,6 +9,9 @@ echo "KADMIN_PRINCIPAL_FULL: $KADMIN_PRINCIPAL_FULL"
 echo "KADMIN_PASSWORD: $KADMIN_PASSWORD"
 echo ""
 
+echo "APPEND OPENLDAP HOSTNAME"
+echo "172.16.238.10 	openldap.example.org" >> /etc/hosts
+
 echo "==================================================================================="
 echo "==== /etc/krb5.conf ==============================================================="
 echo "==================================================================================="
@@ -38,6 +41,39 @@ tee /etc/krb5kdc/kdc.conf <<EOF
 		supported_enctypes = $SUPPORTED_ENCRYPTION_TYPES
 		default_principal_flags = +preauth
 	}
+
+[dbdefaults]
+  ldap_kerberos_container_dn = "cn=krbContainer,dc=example,dc=org"
+
+[dbmodules]
+	openldap_ldapconf = {
+			db_library = kldap
+			disable_last_success = true
+			ldap_kdc_dn = "cn=admin,dc=example,dc=org"
+					# this object needs to have read rights on
+					# the realm container and principal subtrees
+			ldap_kadmind_dn = "cn=admin,dc=example,dc=org"
+					# this object needs to have read and write rights on
+					# the realm container and principal subtrees
+			ldap_service_password_file = /tmp/keyfile/admin-service.keyfile
+			ldap_servers = ldap://openldap:389
+			ldap_conns_per_server = 5
+	}
+
+	$REALM = {
+			db_library = kldap
+			disable_last_success = true
+			ldap_kdc_dn = "cn=admin,dc=example,dc=org"
+					# this object needs to have read rights on
+					# the realm container and principal subtrees
+			ldap_kadmind_dn = "cn=admin,dc=example,dc=org"
+					# this object needs to have read and write rights on
+					# the realm container and principal subtrees
+			ldap_service_password_file = /tmp/keyfile/admin-service.keyfile
+			ldap_servers = ldap://openldap:389
+			ldap_conns_per_server = 5
+	}
+
 EOF
 echo ""
 
@@ -54,11 +90,12 @@ echo "==========================================================================
 echo "==== Creating realm ==============================================================="
 echo "==================================================================================="
 MASTER_PASSWORD=$(tr -cd '[:alnum:]' < /dev/urandom | fold -w30 | head -n1)
-# This command also starts the krb5-kdc and krb5-admin-server services
-krb5_newrealm <<EOF
-$MASTER_PASSWORD
-$MASTER_PASSWORD
-EOF
+kdb5_ldap_util create -w admin -D "cn=admin,dc=example,dc=org" -r $REALM -H ldap://openldap:389 -P $MASTER_PASSWORD  -subtrees "dc=example,dc=org" -s 
+## This command also starts the krb5-kdc and krb5-admin-server services
+#krb5_newrealm <<EOF
+#$MASTER_PASSWORD
+#$MASTER_PASSWORD
+#EOF
 echo ""
 
 echo "==================================================================================="
@@ -67,7 +104,11 @@ echo "==========================================================================
 echo "Adding $KADMIN_PRINCIPAL principal"
 kadmin.local -q "delete_principal -force $KADMIN_PRINCIPAL_FULL"
 echo ""
-kadmin.local -q "addprinc -pw $KADMIN_PASSWORD $KADMIN_PRINCIPAL_FULL"
+kadmin.local -q "addprinc -x dn=uid=admin,dc=example,dc=org -pw $KADMIN_PASSWORD $KADMIN_PRINCIPAL_FULL"
+echo ""
+kadmin.local -q "addprinc -x dn=uid=user01,dc=example,dc=org -pw $USER01_PASSWORD $USER01_PRINCIPAL@$REALM"
+echo ""
+kadmin.local -q "addprinc -x dn=uid=user02,dc=example,dc=org -pw $USER02_PASSWORD $USER02_PRINCIPAL@$REALM"
 echo ""
 
 echo "Adding noPermissions principal"

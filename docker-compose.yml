@@ -6,15 +6,39 @@ services:
   kdc-kadmin:
     build: ./kdc-kadmin
     env_file: kerberos.env
+    hostname: kdc.example.org
     volumes:
       # This is needed otherwise there won't be enough entropy to generate a new kerberos realm
       - /dev/urandom:/dev/random
-
-  kerberos-client:
-    build: ./kerberos-client
-    env_file: kerberos.env
+      - ./kdc-kadmin/keyfile:/tmp/keyfile/
     depends_on:
-      - kdc-kadmin
+      - openldap
+#   networks:
+#     kerberos_net:
+#       ipv4_address: 172.16.238.11
+
+  openldap:
+    build: ./open-ldap
+    env_file: kerberos.env
+    hostname: openldap.example.org
+ #   networks:
+ #     kerberos_net:
+ #       ipv4_address: 172.16.238.10
+ #   volumes:
+ #     - ./open-ldap:/schemas
+  openldapAdmin:
+    image: osixia/phpldapadmin
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS: "openldap.example.org"
+      PHPLDAPADMIN_HTTPS: "false"
+#networks:
+#  kerberos_net:
+#    driver: bridge
+#    ipam:
+#      driver: default
+#      config:
+#        - subnet: 172.16.238.0/24
+#          gateway: 172.16.238.1
 
 # NOTE:
 #  "env_file: kerberos.env" is optional.
